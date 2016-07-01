@@ -53,12 +53,23 @@ var TRXReporter = function (baseReporterDecorator, config, emitter, logger, help
     baseReporterDecorator(this);
 
     this.onRunStart = function () {
-        var userName = process.env.USERNAME || process.env.USER;
+        var userName = process.env.USERNAME || process.env.USER;				
+        var userDomain = 'NT AUTHORITY';
+                
+        var userParts = userName.split('\\');
+        if (userParts.length >= 2) {
+            // has domain part
+            userDomain = userParts[0];
+            userName = userParts[1];
+        }
+        log.debug('UserDomain: '+ userDomain);
+        log.debug('Username: '+ userName);
+        
         var runStartTimestamp = getTimestamp();
         testRun = builder.create("TestRun", {version: '1.0', encoding: 'UTF-8'})
             .att('id', newGuid())
             .att('name', userName + '@' + hostName + ' ' + runStartTimestamp)
-            .att('runUser', userName)
+            .att('runUser', userDomain +'\\'+ userName)
             .att('xmlns', 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010');
 
         testRun.ele('TestSettings')
@@ -128,12 +139,10 @@ var TRXReporter = function (baseReporterDecorator, config, emitter, logger, help
 
     this.specSuccess = this.specSkipped = this.specFailure = function (browser, result) {
         var unitTestId = newGuid();
-        var unitTestName = shortTestName
-            ? result.description
-            : browser.name + '_' + result.description;
-        var className = result.suite.join('.');
-        var codeBase = className + '.' + unitTestName;
-
+        var unitTestName = result.suite.join(' / ') + ' / ' + result.description;                    
+        var className = result.suite[0];
+        var codeBase = browser.name + '_' + unitTestName;
+        
         var unitTest = testDefinitions.ele('UnitTest')
             .att('name', unitTestName)
             .att('id', unitTestId);
